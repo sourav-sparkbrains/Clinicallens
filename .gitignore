@@ -1,0 +1,35 @@
+# Environment
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+
+# Virtual environment
+clinical_env/
+venv/
+env/
+
+# Patient data — never commit
+sample_images/
+visits/
+logs/
+reports/
+appointments/
+notes/
+exports/
+prescreens/
+
+# Fonts downloaded at runtime
+/tmp/*.ttf
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
