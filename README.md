@@ -238,7 +238,7 @@ Runs on Kaggle using **Gemma 4** with a T4 GPU.
 * Accepts image + text input
 * Returns structured response
 
-> Add your Kaggle notebook link here
+> https://www.kaggle.com/code/shuv25/clinicallensgemmainference
 
 ---
 
