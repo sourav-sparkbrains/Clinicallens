@@ -1,0 +1,89 @@
+[
+  {
+    "image_file": "imporved_ringworm.jpg",
+    "image_description": "Circular ring-shaped rash with raised scaly border and clear center on skin",
+    "input": "Patient has a circular ring-shaped rash with a raised, scaly red border and a clearer center on their torso. Mild itching reported. No fever. Present for about 1 week.",
+    "expected_output": "Possible ringworm (Tinea Corporis). Recommend consulting a doctor for antifungal treatment. Avoid sharing towels or clothing. Do not scratch the affected area.",
+    "context": [
+      "Tinea Corporis (ringworm) is a fungal infection causing circular, ring-shaped rashes with raised scaly borders.",
+      "It is highly contagious and spreads through direct contact or contaminated surfaces.",
+      "Treatment typically involves topical antifungal creams prescribed by a doctor.",
+      "It is not caused by a worm despite the name."
+    ],
+    "urgency": "moderate",
+    "condition": "ringworm"
+  },
+  {
+    "image_file": "clean.jpg",
+    "image_description": "Normal healthy skin on arm, no rash or lesions visible",
+    "input": "Patient presents with normal-looking skin on their arm. No visible rash, redness, or lesions. Patient reports mild occasional dryness but no itching or pain.",
+    "expected_output": "No visible skin condition detected. Skin appears healthy. If dryness persists, recommend a basic moisturizer. Consult a doctor if any new symptoms develop.",
+    "context": [
+      "Healthy skin should have uniform tone without redness, lesions, or rashes.",
+      "Mild dryness can be managed with over-the-counter moisturizers.",
+      "Monitoring is recommended if new symptoms appear."
+    ],
+    "urgency": "low",
+    "condition": "normal"
+  },
+  {
+    "image_file": "download (3).jpeg",
+    "image_description": "Large bullseye rash on shoulder/back area with concentric rings of redness",
+    "input": "Patient has a large circular rash on their shoulder with a bullseye pattern — red center, lighter ring, then outer red ring. Appeared 4 days ago. Patient recently returned from a camping trip. Mild fatigue reported.",
+    "expected_output": "Possible Lyme disease — bullseye rash (Erythema Migrans) is a hallmark sign. Seek urgent medical attention immediately. Do not wait for symptoms to worsen. Early antibiotic treatment is critical.",
+    "context": [
+      "Erythema Migrans (bullseye rash) is the classic early sign of Lyme disease.",
+      "Lyme disease is transmitted through infected tick bites, common after outdoor/camping activities.",
+      "Early treatment with antibiotics (doxycycline) is highly effective.",
+      "Delayed treatment can lead to serious complications affecting joints, heart, and nervous system.",
+      "This is a medical emergency requiring immediate doctor consultation."
+    ],
+    "urgency": "urgent",
+    "condition": "lyme_disease"
+  },
+  {
+    "image_file": "download (2).jpeg",
+    "image_description": "Clustered red raised bumps in groups on skin, resembling shingles or psoriasis",
+    "input": "Patient has clusters of small red raised bumps grouped together on their back. Painful and itchy. Appeared suddenly 3 days ago. Patient is over 50 years old and reports feeling tired.",
+    "expected_output": "Possible shingles (Herpes Zoster) or psoriasis. Given the clustered pattern and patient age, shingles is a concern. Seek medical attention promptly. Antiviral medication is most effective when started within 72 hours of rash onset.",
+    "context": [
+      "Shingles is caused by reactivation of the varicella-zoster virus (chickenpox virus).",
+      "It presents as painful clustered blisters/bumps typically on one side of the body.",
+      "Most common in people over 50 or those with weakened immunity.",
+      "Antiviral treatment must be started within 72 hours for maximum effectiveness.",
+      "Psoriasis presents as red scaly plaques and is a chronic autoimmune condition."
+    ],
+    "urgency": "moderate",
+    "condition": "shingles_or_psoriasis"
+  },
+  {
+    "image_file": "download (1).jpeg",
+    "image_description": "Dry, scaly, thickened skin patches on wrist/forearm area",
+    "input": "Patient has dry, rough, scaly patches on their wrist and forearm. Skin appears thickened and cracked. Persistent itching, worse at night. Has had this for several months. No fever.",
+    "expected_output": "Possible eczema (Atopic Dermatitis) or chronic contact dermatitis. Recommend consulting a dermatologist. Avoid known irritants like harsh soaps. Use fragrance-free moisturizers regularly. Do not scratch as it can worsen the condition.",
+    "context": [
+      "Atopic Dermatitis (eczema) is a chronic inflammatory skin condition causing dry, itchy, scaly patches.",
+      "Common locations include wrists, inner elbows, and behind knees.",
+      "Triggers include soaps, detergents, stress, and environmental allergens.",
+      "Treatment includes topical corticosteroids (prescription), moisturizers, and avoiding triggers.",
+      "Chronic scratching can thicken the skin further (lichenification)."
+    ],
+    "urgency": "moderate",
+    "condition": "eczema"
+  },
+  {
+    "image_file": "download.jpeg",
+    "image_description": "Two overlapping circular ring-shaped rashes with raised scaly borders on skin",
+    "input": "Patient has two overlapping circular ring-shaped rashes on their leg. Both have raised, scaly, red borders. Has been spreading over the past 2 weeks. Patient has a pet cat at home.",
+    "expected_output": "Possible ringworm (Tinea Corporis) — multiple lesions suggest spreading infection. Likely transmitted from pet. Recommend urgent dermatologist consultation for prescription antifungal treatment. The pet should also be examined by a veterinarian.",
+    "context": [
+      "Ringworm is highly contagious and can spread from animals (especially cats and dogs) to humans.",
+      "Multiple spreading lesions indicate the infection is progressing and requires prescription treatment.",
+      "Topical antifungals may not be sufficient for multiple or spreading lesions — oral antifungals may be needed.",
+      "All household members and pets should be checked for infection.",
+      "Good hygiene practices are essential to prevent further spread."
+    ],
+    "urgency": "moderate",
+    "condition": "ringworm_multiple"
+  }
+]

@@ -125,7 +125,7 @@ async def process_followup(
 ) -> ProgressionReport:
     """
         Processes a follow-up visit and compares with previous visit.
-        patient_id: unique identifier for the patient
+        patient_id: unique identifier fosummaryr the patient
         image: uploaded image file
         symptoms: optional symptom description
         returns: ProgressionReport

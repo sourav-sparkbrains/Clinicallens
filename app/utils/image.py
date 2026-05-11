@@ -66,18 +66,3 @@ def check_image_quality(image_bytes: bytes) -> None:
 
     if avg_brightness < 40:
         raise ImageValidationError(detail="Image is too dark to assess. Please retake in better lighting.")
-
-    if avg_brightness > 220:
-        raise ImageValidationError(detail="Image is too bright or washed out. Please retake without flash.")
-
-    # import numpy as np
-    # image_array = np.array(image, dtype=np.float32)
-    # laplacian = (
-    #     image_array[:-2, 1:-1] + image_array[2:, 1:-1] +
-    #     image_array[1:-1, :-2] + image_array[1:-1, 2:] -
-    #     4 * image_array[1:-1, 1:-1]
-    # )
-    # blurriness = laplacian.var()
-    #
-    # if blurriness < 100:
-    #     raise ImageValidationError(detail="Image is too blurry to assess. Please retake with a steady hand.")

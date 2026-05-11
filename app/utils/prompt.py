@@ -50,6 +50,10 @@ Rules:
 - follow_up.condition must describe one clear warning sign to watch for
 - follow_up.escalation must describe one specific symptom that requires immediate action
 - if urgency is emergency, follow_up.timeline must be immediate
+- patient_summary must always use cautious language — say "this appears to be..." or "this looks possibly like..." — NEVER say "you have X" or "this is X"
+- patient_summary must always end with: "Please consult a qualified healthcare professional for proper diagnosis and treatment"
+-If no visible skin condition is detected, do not suggest differential diagnoses. Set primary_impression to "No visible skin condition" and 
+urgency to "routine". Do not flag epidemic alerts for healthy skin.
 """
 
 PRESCREEN_SYSTEM_PROMPT = """You are a clinical pre-screening assistant helping healthcare workers 
