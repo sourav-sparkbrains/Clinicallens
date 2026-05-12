@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, Form
+from fastapi import APIRouter, HTTPException, UploadFile, Form, File
 from fastapi.responses import FileResponse
 from typing import Optional
 
@@ -18,9 +18,12 @@ triage_router = APIRouter(
     tags=["triage"],
 )
 
+
 @triage_router.post("/", response_model=TriageReport)
 async def triage(
-    file: UploadFile,
+    file: UploadFile = File(...),
+    audio: Optional[UploadFile] = File(None),
+    video: Optional[UploadFile] = File(None),
     patient_id: str = Form(None),
     prescreen_id: str = Form(None),
     symptoms: Optional[str] = Form(None)
@@ -30,7 +33,11 @@ async def triage(
     Returns a structured triage report.
     """
     try:
-        return await process_triage(file, prescreen_id, patient_id, symptoms)
+        return await process_triage(
+            file, prescreen_id, patient_id, symptoms,
+            audio=audio,
+            video=video
+        )
     except ImageValidationError:
         raise
     except ModelInferenceError:
@@ -43,7 +50,7 @@ async def triage(
 
 @triage_router.post("/followup", response_model=ProgressionReport)
 async def followup(
-    file: UploadFile,
+    file: UploadFile = File(...),
     patient_id: str = Form(...),
     symptoms: Optional[str] = Form(None)
 ) -> ProgressionReport:
@@ -83,9 +90,6 @@ async def prescreen(prescreen_details: PrescreenRequest) -> PrescreenReport:
 async def summary(patient_id: str, language: Optional[str] = None) -> FileResponse:
     """
     Generates and returns a downloadable PDF case summary for a patient.
-    patient_id: unique identifier for the patient
-    language: optional language for patient summary translation e.g. hindi, punjabi
-    returns: downloadable PDF file with full case summary
     """
     try:
         pdf_path = await process_case_summary(patient_id, language)
@@ -103,11 +107,7 @@ async def summary(patient_id: str, language: Optional[str] = None) -> FileRespon
 @triage_router.post("/drug-check", response_model=DrugCheckReport)
 async def drug_check(drug_details: DrugCheckRequest) -> DrugCheckReport:
     """
-    Accepts a skin image and optional symptom description.
-    patient_id: optional existing patient ID for returning patients
-    prescreen_id: optional prescreen ID to include pre-assessment context
-    symptoms: optional symptom description from the health worker
-    returns: structured triage report with diagnosis, urgency, and recommendations
+    Checks for drug interactions between current medications and suggested treatments.
     """
     try:
         patient_id = drug_details.patient_id
@@ -120,6 +120,7 @@ async def drug_check(drug_details: DrugCheckRequest) -> DrugCheckReport:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @triage_router.get("/appointments")
 def appointments() -> list:
     """
@@ -130,13 +131,11 @@ def appointments() -> list:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @triage_router.post("/notes/{patient_id}")
 def add_note(patient_id: str, note_request: NoteRequest) -> dict:
     """
     Saves a free-text health worker note for a patient.
-    patient_id: unique identifier for the patient
-    note_request: contains the note text from the health worker
-    returns: confirmation message
     """
     try:
         save_note(patient_id, note_request.note)
@@ -149,8 +148,6 @@ def add_note(patient_id: str, note_request: NoteRequest) -> dict:
 def get_patient_notes(patient_id: str) -> list:
     """
     Returns all health worker notes for a patient sorted by timestamp.
-    patient_id: unique identifier for the patient
-    returns: list of notes with timestamps
     """
     try:
         return get_notes(patient_id)
@@ -162,7 +159,6 @@ def get_patient_notes(patient_id: str) -> list:
 def export_cases() -> FileResponse:
     """
     Exports anonymized case data as a downloadable CSV file.
-    returns: CSV file with anonymized case records
     """
     try:
         cases = export_anonymous_cases()

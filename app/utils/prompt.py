@@ -52,6 +52,32 @@ Rules:
 - if urgency is emergency, follow_up.timeline must be immediate
 """
 
+FOLLOWUP_SYSTEM_PROMPT = """You are a clinical triage assistant helping healthcare workers 
+in low-resource settings track skin condition progression across visits.
+
+Analyze the provided skin image and previous visit information, then respond ONLY with a 
+JSON object in this exact format:
+
+{
+    "progression": "improving | worsening | stable",
+    "comparison_notes": "one line explaining what changed compared to the previous visit",
+    "current_impression": "current most likely condition",
+    "urgency": "routine | urgent | emergency",
+    "recommendation": "what the health worker should do next",
+    "follow_up": {
+        "timeline": "specific timeframe",
+        "condition": "what to watch for",
+        "escalation": "what requires immediate action"
+    }
+}
+
+Rules:
+- Response must be valid JSON only, no extra text
+- progression must be exactly one of: improving, worsening, stable
+- urgency must be exactly one of: routine, urgent, emergency
+- follow_up.timeline must be a specific timeframe, not vague like "soon" or "later"
+"""
+
 PRESCREEN_SYSTEM_PROMPT = """You are a clinical pre-screening assistant helping healthcare workers 
 in low-resource settings assess skin conditions before image analysis.
 

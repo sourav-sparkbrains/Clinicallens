@@ -1,4 +1,3 @@
-
 import json
 import uuid
 from fastapi import UploadFile
@@ -10,7 +9,8 @@ from app.utils.image import validate_image, resize_image, encode_image, check_im
 from app.utils.prompt import (build_prompt, build_followup_prompt,
                               build_prescreen_prompt, PRESCREEN_SYSTEM_PROMPT,
                               build_summary_prompt, SUMMARY_SYSTEM_PROMPT,
-                              build_drug_check_prompt, DRUG_CHECK_SYSTEM_PROMPT)
+                              build_drug_check_prompt, DRUG_CHECK_SYSTEM_PROMPT,
+                              FOLLOWUP_SYSTEM_PROMPT)
 from app.utils.req_logs import log_triage_request, check_epidemic_pattern
 from app.utils.storage import (save_visit, get_last_visit,
                                save_prescreen_details, get_prescreen_details,
@@ -19,18 +19,37 @@ from app.utils.pdf import generate_case_summary_pdf
 from app.utils.translation import translate_text
 from app.utils.triage_utility import calculate_risk_score
 from app.utils.appointments import save_appointments
+from app.utils.audio import validate_audio, encode_audio, check_audio_size
+from app.utils.video import validate_video, encode_video, check_video_size
 
 
-async def process_triage(image: UploadFile, prescreen_id: str | None = None,
-                         patient_id: str | None = None,
-                         symptoms: str | None = None) -> TriageReport:
+def _clean_json_response(raw: str) -> str:
+    cleaned = raw.strip()
+    if "```" in cleaned:
+        cleaned = cleaned.replace("```json", "```")
+        parts = cleaned.split("```")
+        if len(parts) >= 2:
+            cleaned = parts[1].strip()
+    return cleaned.strip()
+
+
+async def process_triage(
+    image: UploadFile,
+    prescreen_id: str | None = None,
+    patient_id: str | None = None,
+    symptoms: str | None = None,
+    audio: UploadFile | None = None,
+    video: UploadFile | None = None
+) -> TriageReport:
     """
-        Orchestrates the full triage flow from image input to TriageReport output.
-        image: uploaded image file
-        prescreen_id: unique identifier for the prescreen
-        symptoms: optional symptom description
-        returns: TriageReport
-        raises: ResponseParseError if model response cannot be parsed
+    Orchestrates the full triage flow from image input to TriageReport output.
+    image: uploaded image file
+    prescreen_id: unique identifier for the prescreen
+    symptoms: optional symptom description
+    audio: optional audio file of patient describing symptoms
+    video: optional video file of the affected area
+    returns: TriageReport
+    raises: ResponseParseError if model response cannot be parsed
     """
     if not image.filename:
         raise ImageValidationError(detail="No filename provided")
@@ -48,15 +67,32 @@ async def process_triage(image: UploadFile, prescreen_id: str | None = None,
     if prescreen_id is not None:
         prescreen_context = get_prescreen_details(prescreen_id)
 
-    prompt = build_prompt(symptoms, prescreen_context)
-    raw_response = call_gemma4(prompt, encoded_image)
+    # audio processing
+    encoded_audio = None
+    if audio and audio.filename:
+        validate_audio(audio.filename)
+        audio_bytes = await audio.read()
+        check_audio_size(audio_bytes)
+        encoded_audio = encode_audio(audio_bytes)
 
-    cleaned = raw_response.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("```")[1]
-        if cleaned.startswith("json"):
-            cleaned = cleaned[4:]
-    cleaned = cleaned.strip()
+    # video processing
+    encoded_video = None
+    if video and video.filename:
+        validate_video(video.filename)
+        video_bytes = await video.read()
+        check_video_size(video_bytes)
+        encoded_video = encode_video(video_bytes)
+
+    prompt = build_prompt(symptoms, prescreen_context)
+
+    raw_response = call_gemma4(
+        prompt,
+        encoded_image=encoded_image,
+        encoded_audio=encoded_audio,
+        encoded_video=encoded_video,
+    )
+
+    cleaned = _clean_json_response(raw_response)
 
     try:
         data = json.loads(cleaned)
@@ -75,7 +111,7 @@ async def process_triage(image: UploadFile, prescreen_id: str | None = None,
         risk_score = calculate_risk_score(urgency, confidence, referral["needed"])
 
         report = TriageReport(
-            patient_id = patient_id,
+            patient_id=patient_id,
             primary_impression=data["primary_impression"],
             differentials=data["differentials"],
             urgency=urgency,
@@ -113,10 +149,10 @@ async def process_triage(image: UploadFile, prescreen_id: str | None = None,
             save_appointments(patient_id, report.follow_up["timeline"])
 
         return report
+
     except (json.JSONDecodeError, KeyError) as e:
-        raise ResponseParseError(
-            detail=f"Failed to parse model response: {str(e)}"
-        )
+        raise ResponseParseError(detail=f"Failed to parse model response: {str(e)}")
+
 
 async def process_followup(
     patient_id: str,
@@ -124,12 +160,12 @@ async def process_followup(
     symptoms: str | None = None
 ) -> ProgressionReport:
     """
-        Processes a follow-up visit and compares with previous visit.
-        patient_id: unique identifier for the patient
-        image: uploaded image file
-        symptoms: optional symptom description
-        returns: ProgressionReport
-        raises: ResponseParseError if model response cannot be parsed
+    Processes a follow-up visit and compares with previous visit.
+    patient_id: unique identifier for the patient
+    image: uploaded image file
+    symptoms: optional symptom description
+    returns: ProgressionReport
+    raises: ResponseParseError if model response cannot be parsed
     """
     if not image.filename:
         raise ImageValidationError(detail="No filename provided")
@@ -145,14 +181,8 @@ async def process_followup(
         raise ResponseParseError(detail=f"No previous visit found for patient {patient_id}")
 
     prompt = build_followup_prompt(symptoms, last_visit["report"])
-    raw_response = call_gemma4(prompt, encoded_image)
-
-    cleaned = raw_response.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("```")[1]
-        if cleaned.startswith("json"):
-            cleaned = cleaned[4:]
-    cleaned = cleaned.strip()
+    raw_response = call_gemma4(prompt, encoded_image=encoded_image, system_prompt=FOLLOWUP_SYSTEM_PROMPT)
+    cleaned = _clean_json_response(raw_response)
 
     try:
         data = json.loads(cleaned)
@@ -168,11 +198,13 @@ async def process_followup(
     except (json.JSONDecodeError, KeyError) as e:
         raise ResponseParseError(detail=f"Failed to parse model response: {str(e)}")
 
-async def process_prescreen(
-    prescreen_details: dict
-) -> PrescreenReport:
-    """
 
+async def process_prescreen(prescreen_details: dict) -> PrescreenReport:
+    """
+    Processes prescreen details and returns a prescreen report.
+    prescreen_details: dict of patient health details
+    returns: PrescreenReport
+    raises: ResponseParseError if model response cannot be parsed
     """
     if not prescreen_details:
         raise ResponseParseError(detail="No prescreen details provided")
@@ -181,13 +213,7 @@ async def process_prescreen(
 
     prompt = build_prescreen_prompt(prescreen_details)
     raw_response = call_gemma4(prompt, system_prompt=PRESCREEN_SYSTEM_PROMPT)
-
-    cleaned = raw_response.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("```")[1]
-        if cleaned.startswith("json"):
-            cleaned = cleaned[4:]
-    cleaned = cleaned.strip()
+    cleaned = _clean_json_response(raw_response)
 
     try:
         data = json.loads(cleaned)
@@ -198,7 +224,7 @@ async def process_prescreen(
             urgency_hint=data["urgency_hint"],
             questions_for_patient=data["questions_for_patient"]
         )
-        save_prescreen_details(prescreen_id,data)
+        save_prescreen_details(prescreen_id, data)
         return prescreen_report
     except (json.JSONDecodeError, KeyError) as e:
         raise ResponseParseError(detail=f"Failed to parse model response: {str(e)}")
@@ -218,13 +244,7 @@ async def process_case_summary(patient_id: str, language: str | None = None) -> 
 
     prompt = build_summary_prompt(patient_details)
     raw_response = call_gemma4(prompt, system_prompt=SUMMARY_SYSTEM_PROMPT)
-
-    cleaned = raw_response.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("```")[1]
-        if cleaned.startswith("json"):
-            cleaned = cleaned[4:]
-    cleaned = cleaned.strip()
+    cleaned = _clean_json_response(raw_response)
 
     try:
         data = json.loads(cleaned)
@@ -255,12 +275,13 @@ async def process_case_summary(patient_id: str, language: str | None = None) -> 
     except (json.JSONDecodeError, KeyError) as e:
         raise ResponseParseError(detail=f"Failed to parse model response: {str(e)}")
 
+
 async def process_drug_check(patient_id: str, current_medications: list[str]) -> DrugCheckReport:
     """
     Checks for drug interactions between current medications and suggested treatments.
-    patient_id: unique identifier for the patient to retrieve last visit treatments
+    patient_id: unique identifier for the patient
     current_medications: list of medications the patient is currently taking
-    returns: DrugCheckReport with flagged interactions and safe treatments
+    returns: DrugCheckReport
     raises: ResponseParseError if no previous visit found or model response cannot be parsed
     """
     if not patient_id:
@@ -271,15 +292,9 @@ async def process_drug_check(patient_id: str, current_medications: list[str]) ->
         raise ResponseParseError(detail=f"No previous visit found for patient {patient_id}")
 
     treatment_suggestions = last_visit["report"]["treatment_suggestions"]
-    prompt = build_drug_check_prompt(current_medications,treatment_suggestions)
+    prompt = build_drug_check_prompt(current_medications, treatment_suggestions)
     raw_response = call_gemma4(prompt, system_prompt=DRUG_CHECK_SYSTEM_PROMPT)
-
-    cleaned = raw_response.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("```")[1]
-        if cleaned.startswith("json"):
-            cleaned = cleaned[4:]
-    cleaned = cleaned.strip()
+    cleaned = _clean_json_response(raw_response)
 
     try:
         data = json.loads(cleaned)
@@ -292,4 +307,3 @@ async def process_drug_check(patient_id: str, current_medications: list[str]) ->
         )
     except (json.JSONDecodeError, KeyError) as e:
         raise ResponseParseError(detail=f"Failed to parse model response: {str(e)}")
-

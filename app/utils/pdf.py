@@ -55,6 +55,7 @@ def register_unicode_font(language: str) -> str:
     pdfmetrics.registerFont(TTFont(font_name, font_path))
     return font_name
 
+
 def generate_case_summary_pdf(
     patient_id: str,
     total_visits: int,
@@ -75,72 +76,125 @@ def generate_case_summary_pdf(
     PDF_DIR.mkdir(parents=True, exist_ok=True)
     pdf_path = PDF_DIR / f"case_summary_{patient_id}.pdf"
 
+    # TOP/BOTTOM = 1.25cm, LEFT/RIGHT = 0.5cm
+    left_margin = 0.5 * cm
+    right_margin = 0.5 * cm
+    top_margin = 1.25 * cm
+    bottom_margin = 1.25 * cm
+
     doc = SimpleDocTemplate(
         str(pdf_path),
         pagesize=A4,
-        rightMargin=2*cm,
-        leftMargin=2*cm,
-        topMargin=2*cm,
-        bottomMargin=2*cm
+        rightMargin=right_margin,
+        leftMargin=left_margin,
+        topMargin=top_margin,
+        bottomMargin=bottom_margin
     )
 
+    # page width — dynamic based on margins
+    page_width = A4[0] - left_margin - right_margin
+
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=18, spaceAfter=6)
-    heading_style = ParagraphStyle("heading", parent=styles["Heading2"], fontSize=13, spaceAfter=4)
-    body_style = ParagraphStyle("body", parent=styles["Normal"], fontSize=10, spaceAfter=4)
-    muted_style = ParagraphStyle("muted", parent=styles["Normal"], fontSize=9, textColor=colors.grey)
+
+    title_style = ParagraphStyle(
+        "title",
+        parent=styles["Heading1"],
+        fontSize=16,
+        spaceAfter=6,
+        wordWrap="CJK"
+    )
+    heading_style = ParagraphStyle(
+        "heading",
+        parent=styles["Heading2"],
+        fontSize=12,
+        spaceAfter=4,
+        wordWrap="CJK"
+    )
+    body_style = ParagraphStyle(
+        "body",
+        parent=styles["Normal"],
+        fontSize=9,
+        spaceAfter=4,
+        wordWrap="CJK",
+        leading=13
+    )
+    muted_style = ParagraphStyle(
+        "muted",
+        parent=styles["Normal"],
+        fontSize=8,
+        textColor=colors.grey,
+        wordWrap="CJK",
+        leading=12
+    )
 
     elements = []
 
     elements.append(Paragraph("ClinicalLens — Patient Case Summary", title_style))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
-    elements.append(Spacer(1, 0.4*cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
     elements.append(Paragraph(f"Patient ID: {patient_id}", body_style))
     elements.append(Paragraph(f"Total visits: {total_visits}", body_style))
     elements.append(Paragraph(f"First visit: {first_visit_date}", body_style))
     elements.append(Paragraph(f"Last visit: {last_visit_date}", body_style))
-    elements.append(Spacer(1, 0.4*cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
     elements.append(Paragraph("Overall Assessment", heading_style))
     elements.append(HRFlowable(width="100%", thickness=0.3, color=colors.lightgrey))
-    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Spacer(1, 0.2 * cm))
     elements.append(Paragraph(f"Progression: {overall_progression.upper()}", body_style))
     elements.append(Paragraph(f"Current status: {current_status}", body_style))
     elements.append(Paragraph(f"Recommendation: {recommendation_summary}", body_style))
-    elements.append(Spacer(1, 0.4*cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
     elements.append(Paragraph("Conditions Over Time", heading_style))
     elements.append(HRFlowable(width="100%", thickness=0.3, color=colors.lightgrey))
-    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Spacer(1, 0.2 * cm))
     for i, condition in enumerate(conditions_over_time, 1):
         elements.append(Paragraph(f"Visit {i}: {condition}", body_style))
-    elements.append(Spacer(1, 0.4*cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
     elements.append(Paragraph("Visit History", heading_style))
     elements.append(HRFlowable(width="100%", thickness=0.3, color=colors.lightgrey))
-    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Spacer(1, 0.2 * cm))
+
+    # Column widths based on actual page width in percentage
+    col_visit = page_width * 0.06      # 6%
+    col_date = page_width * 0.12
+    col_impression = page_width * 0.22
+    col_urgency = page_width * 0.10
+    col_recommendation = page_width * 0.50
 
     table_data = [["Visit", "Date", "Impression", "Urgency", "Recommendation"]]
     for i, visit in enumerate(visits, 1):
+        recommendation = visit["report"]["recommendation"]
         table_data.append([
             str(i),
             visit["timestamp"][:10],
-            visit["report"]["primary_impression"],
+            Paragraph(visit["report"]["primary_impression"], body_style),
             visit["report"]["urgency"],
-            visit["report"]["recommendation"][:60] + "..." if len(visit["report"]["recommendation"]) > 60 else visit["report"]["recommendation"]
+            Paragraph(recommendation, body_style)
         ])
 
-    table = Table(table_data, colWidths=[1.2*cm, 2.5*cm, 4*cm, 2*cm, 7*cm])
+    table = Table(
+        table_data,
+        colWidths=[col_visit, col_date, col_impression, col_urgency, col_recommendation],
+        repeatRows=1     # repeat header on every page
+    )
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f0f0f0")),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
         ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#fafafa")]),
+        ("WORDWRAP", (0, 0), (-1, -1), True),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
     elements.append(table)
-    elements.append(Spacer(1, 0.4*cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
     if translated_summary and language:
         font_name = register_unicode_font(language)
@@ -148,9 +202,11 @@ def generate_case_summary_pdf(
         translated_style = ParagraphStyle(
             "translated",
             parent=styles["Normal"],
-            fontSize=10,
+            fontSize=9,
             fontName=font_name,
-            spaceAfter=4
+            spaceAfter=4,
+            wordWrap="CJK",
+            leading=13
         )
 
         elements.append(Paragraph(f"Patient Summary ({language.title()})", heading_style))
@@ -160,7 +216,7 @@ def generate_case_summary_pdf(
         elements.append(Spacer(1, 0.4 * cm))
 
     elements.append(HRFlowable(width="100%", thickness=0.3, color=colors.lightgrey))
-    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Spacer(1, 0.2 * cm))
     elements.append(Paragraph(
         "This report is AI-generated and intended to assist a qualified healthcare worker. "
         "It is not a substitute for professional medical judgment.",
