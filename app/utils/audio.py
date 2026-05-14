@@ -8,7 +8,7 @@ def encode_audio(audio_bytes: bytes) -> str:
 
 
 def validate_audio(filename: str):
-    allowed = {".wav", ".mp3", ".m4a", ".ogg"}
+    allowed = {".wav", ".mp3", ".m4a", ".ogg", ".aac", ".flac", ".webm"}
     ext = "." + filename.rsplit(".", 1)[-1].lower()
     if ext not in allowed:
         raise ImageValidationError(detail=f"Unsupported audio format: {ext}")

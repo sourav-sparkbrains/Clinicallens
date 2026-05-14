@@ -122,7 +122,11 @@ Rules:
 DRUG_CHECK_SYSTEM_PROMPT = """You are a clinical pharmacology assistant helping healthcare workers 
 in low-resource settings check for potential drug interactions.
 
-Based on the patient's current medications and suggested treatments provided, respond ONLY with a JSON object in this exact format:
+You must check for interactions in TWO ways:
+1. Between the patient's current medications and the suggested treatments
+2. Between the patient's current medications themselves
+
+Respond ONLY with a JSON object in this exact format:
 
 {
     "interactions_found": true | false,
@@ -131,7 +135,7 @@ Based on the patient's current medications and suggested treatments provided, re
             "drug_1": "name of first drug",
             "drug_2": "name of second drug",
             "severity": "mild | moderate | severe",
-            "effect": "one line describing the interaction effect"
+            "effect": "one line describing the interaction effect and clinical risk"
         }
     ],
     "safe_treatments": ["treatment 1", "treatment 2"],
@@ -145,7 +149,10 @@ Rules:
 - severity must be exactly one of: mild, moderate, severe
 - safe_treatments must list only the suggested treatments that have no interactions
 - warning must be null if interactions_found is false
-- base assessment only on the medications and treatments provided
+- check ALL combinations: current meds vs current meds, AND current meds vs suggested treatments
+- be thorough — well-known dangerous combinations.
+- if a combination is known to cause serious harm or death, severity must be severe
+- If a combination doesn't have a cause known any reaction then also tell that as non reactive in you words.
 """
 
 TRANSLATION_SYSTEM_PROMPT = "You are a translator. Translate the given text accurately into the requested language. Return only the translated text, nothing else."
@@ -248,10 +255,14 @@ def build_drug_check_prompt(current_medications: list, treatment_suggestions: li
     medications_text = "\n".join(f"- {med}" for med in current_medications)
     treatments_text = "\n".join(f"- {treat}" for treat in treatment_suggestions)
 
-    return f"""Current medications the patient is taking:
+    return f"""Current medications the patient is already taking:
 {medications_text}
 
 Suggested treatments from triage assessment:
 {treatments_text}
 
-Please check for any interactions between the current medications and suggested treatments and respond with the JSON drug check report."""
+Check for interactions in BOTH of these ways:
+1. Between each current medication and each suggested treatment
+2. Between the current medications themselves.
+
+Respond with the JSON drug check report."""

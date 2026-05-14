@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #0EA5E9;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.clinical-card {
+  transition: all 0.2s ease;
+}
+
+.clinical-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px -8px rgb(14 165 233 / 0.18);
+}
+
+.hover\:bg-white\/8:hover {
+  background-color: rgba(255,255,255,0.08);
+}

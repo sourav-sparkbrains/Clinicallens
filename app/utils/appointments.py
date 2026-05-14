@@ -5,31 +5,16 @@ from datetime import datetime, timedelta
 APPOINTMENTS_FILE = Path("appointments/appointments.json")
 
 def get_appointment_date(timeline: str) -> datetime:
-    """
-    Utility function to get appointment date from timeline
-    timeline: given timeline
-    return: appointment date
-    """
-    date_map = {'day': 1, 'days': 1, 'week': 7, 'weeks': 7, 'month': 30, 'months': 30}
-    date_prefix = []
-    date_suffix = []
-
-    for c in timeline:
-        if c.isnumeric():
-            date_prefix.append(int(c))
-
-    for i in timeline.split():
-        if i in ('day', 'days', 'week', 'weeks', 'month', 'months'):
-            date_suffix.append(date_map.get(i))
-
-    days = 0
-    i = 0
-    j = 0
-    while i < len(date_prefix) and j < len(date_suffix):
-        days += (date_prefix[i] * date_suffix[j])
-        i += 1
-        j += 1
-
+    date_map = {'hour': 1/24, 'hours': 1/24, 'day': 1, 'days': 1, 'week': 7, 'weeks': 7, 'month': 30, 'months': 30}
+    parts = timeline.lower().split()
+    days = 0.0
+    for i, part in enumerate(parts):
+        if part.replace('.', '').isnumeric() and i + 1 < len(parts):
+            unit = parts[i + 1].rstrip('s') + 's' if not parts[i + 1].endswith('s') else parts[i + 1]
+            multiplier = date_map.get(parts[i + 1], date_map.get(unit, 0))
+            days += float(part) * multiplier
+    if days == 0:
+        days = 1
     return datetime.now() + timedelta(days=days)
 
 def save_appointments(patient_id: str, timeline: str) -> None:
@@ -61,8 +46,8 @@ def save_appointments(patient_id: str, timeline: str) -> None:
 
 def get_upcoming_appointments() -> list:
     """
-    Retrieves all upcoming appointments sorted by appointment date.
-    returns: list of upcoming appointments sorted by nearest date first
+    Retrieves all appointments sorted by appointment date.
+    returns: list of all appointments sorted by nearest date first
     """
     if not APPOINTMENTS_FILE.exists():
         return []
@@ -70,10 +55,4 @@ def get_upcoming_appointments() -> list:
     with open(APPOINTMENTS_FILE, "r") as f:
         appointments = json.load(f)
 
-    now = datetime.now()
-    upcoming = [
-        a for a in appointments
-        if datetime.fromisoformat(a["appointment_date"]) >= now
-    ]
-
-    return sorted(upcoming, key=lambda x: x["appointment_date"])
+    return sorted(appointments, key=lambda x: x["appointment_date"])

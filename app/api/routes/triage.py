@@ -1,3 +1,5 @@
+import json
+from datetime import date
 from fastapi import APIRouter, HTTPException, UploadFile, Form, File
 from fastapi.responses import FileResponse
 from typing import Optional
@@ -9,7 +11,7 @@ from app.services.triage_service import (process_triage, process_followup,
                                          process_prescreen, process_case_summary, process_drug_check)
 from app.core.exceptions import ResponseParseError, ModelInferenceError, ImageValidationError
 from app.utils.appointments import get_upcoming_appointments
-from app.utils.storage import save_note, get_notes, export_anonymous_cases
+from app.utils.storage import save_note, get_notes, export_anonymous_cases, VISITS_DIR
 from app.utils.export import generate_export_csv
 
 
@@ -151,6 +153,72 @@ def get_patient_notes(patient_id: str) -> list:
     """
     try:
         return get_notes(patient_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@triage_router.get("/patient-count")
+def get_patient_count() -> dict:
+    """
+    Returns the total number of unique patients (visit files) so frontend can generate sequential IDs.
+    """
+    try:
+        if not VISITS_DIR.exists():
+            return {"count": 0}
+        count = sum(1 for f in VISITS_DIR.iterdir() if f.suffix == ".json")
+        return {"count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@triage_router.get("/patients")
+def get_patients() -> list:
+    """
+    Returns all patients with their visit summary derived from visit logs.
+    """
+    try:
+        if not VISITS_DIR.exists():
+            return []
+        patients = []
+        for f in sorted(VISITS_DIR.iterdir()):
+            if f.suffix != ".json":
+                continue
+            visits = json.loads(f.read_text())
+            if not visits:
+                continue
+            last = visits[-1]
+            patients.append({
+                "patient_id": f.stem,
+                "last_visit": last["timestamp"][:10],
+                "visits": len(visits),
+                "complaint": last["report"].get("primary_impression", "—"),
+                "urgency": last["report"].get("urgency", "—"),
+            })
+        return patients
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@triage_router.get("/stats")
+def get_stats() -> dict:
+    """
+    Returns dashboard stats derived from visit logs.
+    """
+    try:
+        cases = export_anonymous_cases()
+        today = date.today().isoformat()
+        patients_today = sum(1 for c in cases if c["date"] == today)
+        pending = sum(1 for c in cases if c["urgency"] in ("High", "Medium"))
+        completed = len(cases)
+        critical = sum(1 for c in cases if c["urgency"] == "High")
+        recent = list(reversed(cases))[:4]
+        return {
+            "patients_today": patients_today,
+            "pending_triage": pending,
+            "cases_completed": completed,
+            "critical_cases": critical,
+            "recent_cases": recent,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
